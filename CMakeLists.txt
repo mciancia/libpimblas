@@ -7,8 +7,10 @@ set(PIM_BLAS_VERSION 0.1)
 #set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 option(BUILD_TESTS "Build tests" ON)
-option(USE_SDK_HOST_CXX "USE UPMEME SDK COMPILERS" ON)
+option(ADD_GTEST_LIB  "ADD GOOGLE TEST" OFF)
 
+option(USE_SDK_HOST_CXX "USE UPMEME SDK COMPILERS" ON)
+option(LOGGING "Enabled logging spdlog" ON)
 
 set(CND_HOME $ENV{CONDA_PREFIX_2})
 if(NOT CND_HOME)
@@ -22,16 +24,8 @@ if(NOT FOUND_PYT36)
 
 
  set(GEHD_SCRIPT "${CMAKE_SOURCE_DIR}/bin/genhd.sh")
-
-if(BUILD_TESTS)
-    include(FetchContent)
-    FetchContent_Declare(
-      googletest
-      GIT_REPOSITORY https://github.com/google/googletest.git
-      GIT_TAG release-1.11.0
-    )
-    FetchContent_MakeAvailable(googletest)
-endif()
+ include(FetchContent)
+ 
 
 set(PIMBLAS_DEFAULT_KERENEL_DIR ${CMAKE_BINARY_DIR}/kernels)
 
@@ -48,10 +42,30 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON) 
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-if(USE_SDK_HOST_CXX)
-  set(CMAKE_C_COMPILER "${UPH}/bin/clang")
-  set(CMAKE_CXX_COMPILER "${UPH}/bin/clang++")
+
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
+
+if(LOGGING)
+include("cmake/spdlog.cmake")
+add_definitions(-DLOGGING)
 endif()
+
+
+if(USE_SDK_HOST_CXX)
+#  set(CMAKE_C_COMPILER "${UPH}/bin/clang" CACHE STRING "Custom C compiler" FORCE)
+#  set(CMAKE_CXX_COMPILER "${UPH}/bin/clang++" CACHE STRING "Custom C++ compiler" FORCE )
+  set(CMAKE_C_COMPILER "${UPH}/bin/clang" )
+  set(CMAKE_CXX_COMPILER "${UPH}/bin/clang++")
+
+ endif()
+
+if(ADD_GTEST_LIB)
+   include("cmake/gtest.cmake")
+   add_definitions(-DADD_GTEST_LIB)
+endif()
+
 
 message(STATUS "CMAKE_C_COMPILER  [${CMAKE_C_COMPILER}]")
 message(STATUS "CMAKE_CXX_COMPILER [${CMAKE_CXX_COMPILER}]")

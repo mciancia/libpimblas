@@ -28,7 +28,12 @@ target_include_directories(pimblas PRIVATE
 
 
 link_directories("${UPH}/lib64")
-target_link_libraries(pimblas PRIVATE dpu)  # ./dpu-pkg-config --cflags --libs dpu 
+set(PIMBLAS_LINK_LIBS "dpu")
+if(LOGGING)
+list(APPEND PIMBLAS_LINK_LIBS "spdlog::spdlog" )
+endif()
+
+target_link_libraries(pimblas PRIVATE ${PIMBLAS_LINK_LIBS})  # ./dpu-pkg-config --cflags --libs dpu 
 install(TARGETS pimblas DESTINATION lib)
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../include/libpimblas.h"
         DESTINATION include) 
