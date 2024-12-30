@@ -12,7 +12,7 @@ option(ADD_GTEST_LIB  "ADD GOOGLE TEST" OFF)
 option(USE_SDK_HOST_CXX "USE UPMEME SDK COMPILERS" ON)
 option(LOGGING "Enabled logging spdlog" ON)
 
-set(CND_HOME $ENV{CONDA_PREFIX_2})
+set(CND_HOME $ENV{CONDA_PREFIX})
 if(NOT CND_HOME)
 message(FATAL_ERROR "Conda is not installed")
 endif()
