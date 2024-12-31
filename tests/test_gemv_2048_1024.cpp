@@ -1,7 +1,5 @@
 #include "common.hpp"
-#include <algorithm>
-#include <vector>
-#include <random>
+
 
 std::vector<int> generateRandomIntegers(int size, int min, int max) {
    
@@ -43,7 +41,7 @@ int naive_gemv(uint32_t m, uint32_t n, const int *mat, const int *vec, int *out)
 
 int main(int argc, char **argv) {
 
-
+     show_info("INIT LOGGER OK ");   
     const int M = 2048;
     const int N = 1024;
     auto mat = generateRandomIntegers(M*N,5,40);

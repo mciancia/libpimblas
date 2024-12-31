@@ -11,7 +11,9 @@ int gemv( uint32_t m, uint32_t n, const int *mat, const int* vec, int* out ) {
 
   
     const int mat_len = m * n * sizeof(int);
-    const int vec_len =     n * sizeof(int);
+    const int vec_len = n * sizeof(int);
+
+   
  
    //  int* mat = (int*) malloc(mat_len);
    //  int* vec = (int*) malloc(vec_len);
