@@ -1,7 +1,10 @@
 #pragma once
-#include "libpimblas.h"
+#include "pimblas.h"
 #include "pimblas_init.h"
 #include <iostream>
+#include <algorithm>
+#include <vector>
+#include <random>
 #include <dpu>
 
 // #define LOGGING
