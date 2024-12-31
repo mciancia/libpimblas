@@ -2,9 +2,10 @@
 #include <mram.h>
 #include <defs.h>
 
-#ifndef NR_TASKLETS
-#define NR_TASKLETS 16
-#endif
+// #ifndef NR_TASKLETS
+// #define NR_TASKLETS 16
+// #endif
+
 
 
 #define M 32
