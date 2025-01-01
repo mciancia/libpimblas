@@ -24,6 +24,7 @@ target_include_directories(pimblas PRIVATE
 		   ${CMAKE_CURRENT_SOURCE_DIR}/../../include
 		   ${UPH}/include/dpu    #    ./dpu-pkg-config --cflags --libs dpu   
 		   ${CMAKE_BINARY_DIR}  # for pimblas_init.h
+		   ${CMAKE_CURRENT_SOURCE_DIR}/../share
 		   )
 
 

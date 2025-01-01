@@ -14,7 +14,7 @@ option(LOGGING "Enabled logging spdlog" ON)
 
 
 if(NOT DEFINED NR_TASKLETS)
-  set(NR_TASKLETS "16")  # optimal usage
+  set(NR_TASKLETS "2")  # optimal usage
 endif()
 
 
@@ -85,3 +85,26 @@ if(BUILD_TESTS)
    add_subdirectory(tests)
 endif()
 
+set(CLANG_FORMAT "${CMAKE_CURRENT_LIST_DIR}/bin/clang-format")
+
+
+file(GLOB_RECURSE CLANG_FILES_UPDATE
+    "${CMAKE_CURRENT_LIST_DIR}/src/*.c"
+    "${CMAKE_CURRENT_LIST_DIR}/src/*.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/src/*.h"
+    "${CMAKE_CURRENT_LIST_DIR}/src/*.hpp"
+    "${CMAKE_CURRENT_LIST_DIR}/include/*.h"
+    "${CMAKE_CURRENT_LIST_DIR}/include/*.hpp"
+    "${CMAKE_CURRENT_LIST_DIR}/tests/*.c"
+    "${CMAKE_CURRENT_LIST_DIR}/tests/*.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/tests/*.h"
+    "${CMAKE_CURRENT_LIST_DIR}/tests/*.hpp"
+    
+)
+
+
+
+add_custom_target(format
+    COMMAND ${CLANG_FORMAT} -i ${CLANG_FILES_UPDATE}
+    COMMENT "Running clang-format on source files"
+)
