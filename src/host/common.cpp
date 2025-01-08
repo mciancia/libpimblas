@@ -66,3 +66,50 @@ void pimlog_redirect(int level, const char *file_line, const char *format, ...) 
 }
 
 #endif
+
+#ifdef TORCH_CPU_CATCH_ALLOCATOR
+
+namespace c10 {
+void *alloc_cpu(size_t nbytes) {
+  constexpr size_t BLK_SIZE = 8;
+  size_t nbytes_align = (nbytes + BLK_SIZE - 1) / BLK_SIZE * BLK_SIZE;
+
+  void *ptr;
+
+  if (posix_memalign(&ptr, 64, nbytes_align) != 0) {
+    show_error("torch-alloc-cpu posix_memaling error {} bytes", nbytes_align);
+    ptr = nullptr;
+  }
+
+  show_trace("torch-alloc-cpu required=[{}] return=[{}] bytes ptr={}", nbytes, nbytes_align, ptr);
+
+  return ptr;
+}
+
+void free_cpu(void *data) {
+  show_trace("torch-free-cpu bytes {}", data);
+  free(data);
+}
+}  // namespace c10
+
+#endif
+
+#ifdef TORCH_CPU_BLAS_CATCH
+// #include <cblas.h>
+
+extern "C" {
+
+void sgemm_(const char *transa, const char *transb, const int *m, const int *n, const int *k, const float *alpha,
+            const float *a, const int *lda, const float *b, const int *ldb, const float *beta, float *c,
+            const int *ldc) {
+  show_trace(
+      "handle->sgemm_ transa=[{}] transb=[{}] m=[{}] n=[{}] k=[{}] alpha=[{}] a=[{:#018x}] lda=[{}] b=[{:#018x}] "
+      "ldb=[{}] beta=[{}] c=[{:#018x}] ldc=[{}]",
+      transa, transb, *m, *n, *k, *alpha, reinterpret_cast<const uintptr_t>(a), *lda,
+      reinterpret_cast<const uintptr_t>(b), *ldb, *beta, reinterpret_cast<const uintptr_t>(c), *ldc);
+  show_debug("handle->sgemm_");
+  show_error("sgemm-catch is not supported !");
+}
+}
+
+#endif

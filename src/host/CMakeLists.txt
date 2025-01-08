@@ -36,7 +36,7 @@ endif()
 
 target_link_libraries(pimblas PRIVATE ${PIMBLAS_LINK_LIBS})  # ./dpu-pkg-config --cflags --libs dpu 
 install(TARGETS pimblas DESTINATION lib)
-install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../include/libpimblas.h"
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../include/pimblas.h"
         DESTINATION include) 
 
 

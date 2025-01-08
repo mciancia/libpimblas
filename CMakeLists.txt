@@ -12,6 +12,9 @@ option(ADD_GTEST_LIB  "ADD GOOGLE TEST" OFF)
 option(USE_SDK_HOST_CXX "USE UPMEME SDK COMPILERS" ON)
 option(LOGGING "Enabled logging spdlog" ON)
 
+option(BUILD_TORCH_CPU_CATCH_ALLOCATOR "Build torch_cpu_catch" ON)
+option(BUILD_TORCH_CPU_BLAS_CATCH "Build torch_blas_catch" ON)
+
 
 if(NOT DEFINED NR_TASKLETS)
   set(NR_TASKLETS "16")  # optimal usage
@@ -57,6 +60,15 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 if(LOGGING)
 include("cmake/spdlog.cmake")
 add_definitions(-DLOGGING)
+endif()
+
+
+if(BUILD_TORCH_CPU_CATCH_ALLOCATOR)
+add_definitions(-DTORCH_CPU_CATCH_ALLOCATOR)
+endif()
+
+if(BUILD_TORCH_CPU_BLAS_CATCH)
+add_definitions(-DTORCH_CPU_BLAS_CATCH)
 endif()
 
 
