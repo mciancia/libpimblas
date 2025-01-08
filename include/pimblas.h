@@ -25,7 +25,10 @@ int pimblas_relu(void *ptr, size_t size);
 
 int gemv(uint32_t m, uint32_t n, const int *mat, const int *vec, int *out);
 
+int gemv_f(uint32_t m, uint32_t n, const float *mat, const float *vec, float *out);
+
 int vector_add(const int *a_input_ptr, const int *b_input_ptr, size_t num_elem, int *output);
+
 
 /* CBLAS API */
 

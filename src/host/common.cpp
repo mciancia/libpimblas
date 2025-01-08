@@ -14,6 +14,7 @@ char *pimblas_get_kernel_dir_concat_free(const char *name) {
   full += name;
   char *ptr = (char *)malloc(full.size() + 1);
   strncpy(ptr, full.c_str(), full.size());
+  ptr[full.size()] = 0;
   return ptr;
 }
 
