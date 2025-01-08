@@ -14,7 +14,7 @@ option(LOGGING "Enabled logging spdlog" ON)
 
 
 if(NOT DEFINED NR_TASKLETS)
-  set(NR_TASKLETS "2")  # optimal usage
+  set(NR_TASKLETS "16")  # optimal usage
 endif()
 
 
