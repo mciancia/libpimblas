@@ -14,10 +14,10 @@ int host_gemv_f(uint32_t m, uint32_t n, const float *mat, const float *vec, floa
 }
 
 int main(int argc, char **argv) {
-  const int M = 3871;
-  const int N = 999;
-  auto mat = generateRandomFloats(M * N, 1.0f, 1.0f);
-  auto vec = generateRandomFloats(N, 1.0f, 1.0f);
+  const int M = 3514;
+  const int N = 4713;
+  auto mat = generateRandomFloats(M * N, 1.0f, 10.0f);
+  auto vec = generateRandomFloats(N, 1.0f, 10.0f);
 
   pimblas::vector<float> out(M);
   int ret = 0;
@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
     RET_TEST_FAIL;
   }
 
-  // 1 percent difference at most
+  // 0.01 percent difference at most
   bool same = mostly_same(out.data(), out_host.data(), M, 1e-4f);
   if (same) {
     std::cout << "SUCCESS " << std::endl;

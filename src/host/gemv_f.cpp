@@ -33,14 +33,19 @@ void gemv_launch_statistics(uint32_t m, uint32_t n, uint32_t &numDPUs, uint32_t 
   assert(numDPUs <= maxDPUs);
 }
 
+void print_output(dpu_set_t set) {
+  dpu_set_t dpu;
+  DPU_FOREACH(set, dpu) {
+    dpu_log_read(dpu, stdout);
+  }
+}
 extern "C" {
 int gemv_f(uint32_t m, uint32_t n, const float *mat, const float *vec, float *out) {
-    uint32_t numDPUs = 8; // number of available DPUs
+    uint32_t numDPUs = 64; // number of available DPUs
     uint32_t rowsPerDPU;
     gemv_launch_statistics(m, n, numDPUs, rowsPerDPU);
 
     show_info("gemv_f m={}, n={}, numDPUs={}, rowsPerDPU={}", m, n, numDPUs, rowsPerDPU);
-    std::cout << "rowsperdpu: "<<rowsPerDPU<<std::endl;
     dpu_set_t set;
     DPU_ASSERT(dpu_alloc(numDPUs, nullptr, &set));
     char *kernName = pimblas_get_kernel_dir_concat_free("gemv_f.kernel");
@@ -58,6 +63,8 @@ int gemv_f(uint32_t m, uint32_t n, const float *mat, const float *vec, float *ou
     offset = transfer_full_to_mram_directly(set, numDPUs, offset, vec, n);
 
     DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
+
+    //print_output(set);
 
     transfer_chunks_from_mram_directly(set, numDPUs, offset, out, rowsPerDPU, m);
 

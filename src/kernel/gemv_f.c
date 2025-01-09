@@ -6,12 +6,13 @@
 #include <string.h>
 
 /*
-Basic GEMV kernel performing alpha * A * x
-where alpha and beta are scalars, A is a matrix of size m x n,
+Basic GEMV kernel performing A * x
+A is a matrix of size m x n,
 x is a vector of size n
 
 Notes: 
 Only part of A is transferred to single DPU. Namely rows_per_dpu
+x is same across all DPU's
 
 Computing parameters:
 NR_TASKLETS - number of tasklets (threads) running on single DPU
@@ -20,6 +21,11 @@ row_size - maximum size of single matrix row
 
 */
 
+// We've got 64KB of WRAM, we are working with 4B floats, and need to allocate wram
+// for part of A rows, and part of X rows and output(small in comparison), and 16 tasklets.
+// That makes 4KB per tasklet, that means we could go to block size 512 - aka 4KB, but that
+// would leave no place for output. So we stick with 256 for now. 
+// TODO: Find even more optimal value
 #define BLOCK_SIZE 256
 
 __mram_noinit uint32_t metadata[2]; // 0 - rows_per_dpu, 1 - row_size
@@ -53,17 +59,13 @@ int main() {
     uint32_t rows_per_dpu = metadata[0];
     uint32_t row_size = metadata[1];
 
-    int rows_per_tasklet = (rows_per_dpu - 1) / nr_tasklets + 1;
-
-    if(tasklet_id == 0) {
-        printf("Why oh we, does it work with printf\n");
-    }
-
-    // Rows per tasklet should be even
-    if (rows_per_tasklet & 1) {
+    // Sanity checks: NR_tasklets should be 16, rows_per_dpu should be a multiple of 32, because
+    // rows per tasklet should be even
+    if (nr_tasklets != 16 || rows_per_dpu & 15) {
         return 1;
     }
-
+    // Rows per tasklet 
+    int rows_per_tasklet = rows_per_dpu / nr_tasklets;
 
     // Note: All MRAM allocations need to be 8B aligned in order to read from/write to them.
 
@@ -89,8 +91,17 @@ int main() {
         (tasklet_id * rows_per_tasklet) * sizeof(float)
     );
 
-    float *A_wram = (float *)mem_alloc(BLOCK_SIZE * sizeof(float));
+    // TODO: Find better way to share x across all tasklets, because now we 
+    // have multiple copies of the same values across tasklets.
+    // If number of rows to be processed is small enough it should be possible
+    // or we could just make a barrier and wait until all tasklets finish until
+    // getting another part of x
     float *x_wram = (float *)mem_alloc(BLOCK_SIZE * sizeof(float));
+    // It's important we allocate more memory for A_wram, because of the hack
+    // we later to do to write into it from mram (alignment issues).
+    // We add 64B in order to be aligned. 
+    float *A_wram = (float *)mem_alloc((BLOCK_SIZE) * sizeof(float) + 64);
+
 
     // Allocation needs to be aligned to 64B, or we start getting
     // allocations on top of another...
@@ -127,6 +138,7 @@ int main() {
             }
 
             result_wram[i] += sum;
+            
         }
     }
     mram_write(result_wram, (__mram_ptr void *)result_mram, rows_per_tasklet * sizeof(float));
