@@ -57,6 +57,25 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 
+# Override UPMEM std
+set(SEARCH_LIBSTDCXX_PATHS
+    /lib/x86_64-linux-gnu/
+    /lib64/
+)
+
+find_library(LIBSTDCXX_PATH
+    NAMES libstdc++.so.6
+    PATHS ${SEARCH_LIBSTDCXX_PATHS}
+    NO_DEFAULT_PATH
+)
+
+if(LIBSTDCXX_PATH)
+    get_filename_component(LIBSTDCXX_DIR ${LIBSTDCXX_PATH} DIRECTORY)
+    message(STATUS "Found libstdc++ in: ${LIBSTDCXX_DIR}")
+else()
+    message(FATAL_ERROR "libstdc++ not found in provided paths.")
+endif()
+
 if(LOGGING)
 include("cmake/spdlog.cmake")
 add_definitions(-DLOGGING)

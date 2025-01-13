@@ -34,7 +34,7 @@ foreach(file ${cpp_files})
    add_test(NAME ${TNAME} COMMAND ${TNAME})
    install(TARGETS ${TNAME} DESTINATION tests)
    set_target_properties(${TNAME} PROPERTIES INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib:${CND_HOME}/lib:${LD_LIBRARY_PATH}")
-   set_target_properties(${TNAME} PROPERTIES BUILD_RPATH "/lib/x86_64-linux-gnu/")
+   set_target_properties(${TNAME} PROPERTIES BUILD_RPATH "${LIBSTDCXX_DIR}")
 endforeach()
 
 
