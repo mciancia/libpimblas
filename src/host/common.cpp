@@ -110,6 +110,17 @@ void sgemm_(const char *transa, const char *transb, const int *m, const int *n, 
   show_debug("handle->sgemm_");
   show_error("sgemm-catch is not supported !");
 }
+
+void sgemv_(const char *trans, const int *m, const int *n, const float *alpha, const float *A, const int *lda,
+            const float *x, const int *incX, const float *beta, float *y, const int *incY) {
+  show_trace(
+      "handle->sgemv_  transa=[{}]  m=[{}] n=[{}] alpha=[{}] A=[{:#018x}] lda=[{}] x=[{:#018x}] "
+      "incX=[{}] beta=[{}] y=[{:#018x}] incY=[{}]",
+      trans, *m, *n, *alpha, reinterpret_cast<const uintptr_t>(A), *lda, reinterpret_cast<const uintptr_t>(x), *incX,
+      *beta, reinterpret_cast<const uintptr_t>(y), *incY);
+  show_debug("handle->sgemv_");
+  show_error("sgemv_->catch is not supported !");
+}
 }
 
 #endif
