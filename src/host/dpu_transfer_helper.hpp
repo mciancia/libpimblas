@@ -18,10 +18,12 @@ template <typename T>
 void transfer_chunks_from_mram(dpu_set_t set, const char *symbol, T *data, size_t chunk_size, size_t size);
 
 template <typename T>
-size_t transfer_chunks_from_mram_directly(dpu_set_t set, uint32_t nrDPUs, size_t offset, T *data, size_t chunkSize, size_t size);
+size_t transfer_chunks_from_mram_directly(dpu_set_t set, uint32_t nrDPUs, size_t offset, T *data, size_t chunkSize,
+                                          size_t size);
 
 template <typename T>
-size_t transfer_chunks_to_mram_directly(dpu_set_t set, uint32_t nrDPUs, size_t offset, T *data, size_t chunkSize, size_t size);
+size_t transfer_chunks_to_mram_directly(dpu_set_t set, uint32_t nrDPUs, size_t offset, T *data, size_t chunkSize,
+                                        size_t size);
 
 template <typename T>
 size_t transfer_full_to_mram_directly(dpu_set_t set, uint32_t nrDPUs, size_t offset, T *data, size_t size);

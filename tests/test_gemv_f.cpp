@@ -1,7 +1,6 @@
 #include "common.hpp"
 #include "test_helper.hpp"
 
-
 int host_gemv_f(uint32_t m, uint32_t n, const float *mat, const float *vec, float *y, float alpha, float beta) {
   for (size_t row = 0; row < m; ++row) {
     float mul_res = 0.0f;
