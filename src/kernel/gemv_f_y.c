@@ -6,12 +6,15 @@
 #include <string.h>
 
 /*
-Basic GEMV kernel performing A * x
+Basic GEMV kernel performing y = alpha * A * x + beta * y
 A is a matrix of size m x n,
 x is a vector of size n
+y is a vector of size m
 
 Notes: 
-Only part of A is transferred to single DPU. Namely rows_per_dpu
+Part of A is transferred to single DPU - rows_per_dpu rows
+Part of y - rows_per_dpu elements
+
 x is same across all DPU's
 
 Computing parameters:
@@ -28,7 +31,14 @@ row_size - maximum size of single matrix row
 // TODO: Find even more optimal value
 #define BLOCK_SIZE 256
 
-__mram_noinit uint32_t metadata[2]; // 0 - rows_per_dpu, 1 - row_size
+struct params {
+    uint32_t rows_per_dpu;
+    uint32_t row_size;
+    float alpha;
+    float beta;
+};
+
+__host struct params args;
 
 BARRIER_INIT(mem_reset_barrier, NR_TASKLETS);
 
@@ -55,17 +65,13 @@ int main() {
     }
     barrier_wait(&mem_reset_barrier);
 
-    uint32_t nr_tasklets = NR_TASKLETS;
-    uint32_t rows_per_dpu = metadata[0];
-    uint32_t row_size = metadata[1];
-
     // Sanity checks: NR_tasklets should be 16, rows_per_dpu should be a multiple of 32, because
     // rows per tasklet should be even
-    if (nr_tasklets != 16 || rows_per_dpu & 31) {
+    if (NR_TASKLETS != 16 || args.rows_per_dpu & 31) {
         return 1;
     }
     // Rows per tasklet 
-    int rows_per_tasklet = rows_per_dpu / nr_tasklets;
+    int rows_per_tasklet = args.rows_per_dpu / NR_TASKLETS;
 
     // Note: All MRAM allocations need to be 8B aligned in order to read from/write to them.
 
@@ -76,14 +82,14 @@ int main() {
 
     float *A_mram = (float *)(
         DPU_MRAM_HEAP_POINTER + mram_offset_in_bytes +
-        (tasklet_id * row_size * rows_per_tasklet) * sizeof(float)
+        (tasklet_id * args.row_size * rows_per_tasklet) * sizeof(float)
     );
-    mram_offset_in_bytes += alignUpTo8(row_size * rows_per_dpu * sizeof(float));
+    mram_offset_in_bytes += alignUpTo8(args.row_size * args.rows_per_dpu * sizeof(float));
 
     float *x_mram = (float *)(
         DPU_MRAM_HEAP_POINTER + mram_offset_in_bytes
     );
-    mram_offset_in_bytes += alignUpTo8(row_size * sizeof(float));
+    mram_offset_in_bytes += alignUpTo8(args.row_size * sizeof(float));
 
     // Should be fine as long as rows_per_tasklet is even
     float *result_mram = (float *)(
@@ -106,20 +112,20 @@ int main() {
     // Allocation needs to be aligned to 64B, or we start getting
     // allocations on top of another...
     uint32_t result_size = alignUpTo64(rows_per_tasklet * sizeof(float));
-    float *result_wram = (float *)mem_alloc(result_size);
+    float *mul_result_wram = (float *)mem_alloc(result_size);
 
     // zero out the results - it's required when we are running the kernel multiple times.
-    memset(result_wram, 0, result_size);
+    memset(mul_result_wram, 0, result_size);
 
-    int nr_blocks = (row_size - 1) / BLOCK_SIZE + 1;
-    for (int block = 0; block < nr_blocks; block++) {
+    int nr_blocks = (args.row_size - 1) / BLOCK_SIZE + 1;
+    for (uint32_t block = 0; block < nr_blocks; block++) {
         const int block_offset = block * BLOCK_SIZE;
 
-        int block_length = block_offset + BLOCK_SIZE <= row_size ? BLOCK_SIZE : row_size - block_offset;
+        int block_length = block_offset + BLOCK_SIZE <= args.row_size ? BLOCK_SIZE : args.row_size - block_offset;
         mram_read((__mram_ptr void *)(x_mram + block_offset), x_wram, BLOCK_SIZE * sizeof(float));
-        for (int i = 0; i < rows_per_tasklet; i++) {
+        for (uint32_t i = 0; i < rows_per_tasklet; i++) {
             float sum = 0;
-            uint32_t a_offset = (uint32_t)(A_mram + i * row_size + block_offset);
+            uint32_t a_offset = (uint32_t)(A_mram + i * args.row_size + block_offset);
             float *A_wram_read = NULL;
             if (a_offset & 7) {
                 // If offset is not aligned to 8B it will be automatically aligned down to 8 bytes
@@ -133,14 +139,23 @@ int main() {
                 A_wram_read = A_wram;
             }
 
-            for (int j = 0; j < block_length; ++j) {
+            for (uint32_t j = 0; j < block_length; ++j) {
                 sum += A_wram_read[j] * x_wram[j];
             }
 
-            result_wram[i] += sum;
+            mul_result_wram[i] += sum;
             
         }
     }
+
+    float *result_wram = (float *)mem_alloc(result_size);
+    mram_read((__mram_ptr void *)(result_mram), result_wram, rows_per_tasklet * sizeof(float));
+
+    for (uint32_t i = 0; i < rows_per_tasklet; i++) {
+        // y = alpha * Ax + beta * y
+        result_wram[i] = args.alpha * mul_result_wram[i] + args.beta * result_wram[i];
+    }
+
     mram_write(result_wram, (__mram_ptr void *)result_mram, rows_per_tasklet * sizeof(float));
 
     return 0;

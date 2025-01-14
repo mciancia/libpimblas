@@ -1,51 +1,20 @@
 #include "common.hpp"
 #include "dpu_transfer_helper.hpp"
 
-void gemv_launch_statistics(uint32_t m, uint32_t n, uint32_t &numDPUs, uint32_t &rowsPerDPU) {
-  // Assumptions:
-  // MRAM size of each DPU is 64MB
-  // part of A needs to be copied to each DPU - n * rows_per_dpu
-  // x vector needs to be copied to each DPU - n 
-  // part of y vector needs to be copied to each DPU - rows_per_dpu
-  // part of results resides on each DPU - rows_per_dpu
-  // Total ints per DPU: n * (rows_per_dpu + 1) + 2 * rows_per_dpu
-  // Threads per DPU: 16
-  // At minimum two rows per tasklet (because the output needs to be 8B aligned)
-
-  rowsPerDPU = alignUp((m - 1) / numDPUs + 1, 32);
-  size_t memory_requirement = (n * (rowsPerDPU + 1) + 2 * rowsPerDPU) * sizeof(float);
-  
-  // Let's leave 1 MB 
-  constexpr size_t mem_cap = 63 * 1024 * 1024;
-  while (memory_requirement > mem_cap) {
-    rowsPerDPU -= 32;
-    memory_requirement = n * (rowsPerDPU + 1) + 2 * rowsPerDPU;
-  }
-
-  constexpr size_t minRowsPerDPU = 32 * 8 / sizeof(float);
-  if (rowsPerDPU < minRowsPerDPU) {
-    rowsPerDPU = minRowsPerDPU;
-  }
-
-  numDPUs = (m - 1) / rowsPerDPU + 1;
-
-  constexpr uint32_t maxDPUs = 128;
-  assert(numDPUs <= maxDPUs);
-}
-
 void print_output(dpu_set_t set) {
   dpu_set_t dpu;
   DPU_FOREACH(set, dpu) {
     dpu_log_read(dpu, stdout);
   }
 }
+
 extern "C" {
-int gemv_f(uint32_t m, uint32_t n, const float *mat, const float *vec, float *out) {
+int gemv_f_basic(uint32_t m, uint32_t n, const float *mat, const float *vec, float *out) {
     uint32_t numDPUs = 64; // number of available DPUs
     uint32_t rowsPerDPU;
     gemv_launch_statistics(m, n, numDPUs, rowsPerDPU);
 
-    show_info("gemv_f m={}, n={}, numDPUs={}, rowsPerDPU={}", m, n, numDPUs, rowsPerDPU);
+    show_trace("gemv_f m={}, n={}, numDPUs={}, rowsPerDPU={}", m, n, numDPUs, rowsPerDPU);
     dpu_set_t set;
     DPU_ASSERT(dpu_alloc(numDPUs, nullptr, &set));
     char *kernName = pimblas_get_kernel_dir_concat_free("gemv_f.kernel");
@@ -72,4 +41,55 @@ int gemv_f(uint32_t m, uint32_t n, const float *mat, const float *vec, float *ou
 
     return 0;
 }
+
+int gemv_f(uint32_t m, uint32_t n, const float *A, const float *x, float *y, const float *alpha, const float *beta) {
+  struct params {
+    uint32_t rows_per_dpu;
+    uint32_t row_size;
+    float alpha;
+    float beta;
+  };
+
+  uint32_t numDPUs = 64; // number of available DPUs
+  uint32_t rowsPerDPU;
+  gemv_launch_statistics(m, n, numDPUs, rowsPerDPU);
+
+  show_trace("gemv_f m={}, n={}, A={}, x={}, y={}, alpha={}, beta={}, numDPUs={}, rowsPerDPU={}",
+                m, n, reinterpret_cast<const uintptr_t>(A), reinterpret_cast<const uintptr_t>(x),
+                reinterpret_cast<const uintptr_t>(y), *alpha, *beta, numDPUs, rowsPerDPU);
+
+  dpu_set_t set;
+  DPU_ASSERT(dpu_alloc(numDPUs, nullptr, &set));
+
+  char *kernName = pimblas_get_kernel_dir_concat_free("gemv_f_y.kernel");
+  show_debug("kern_path = {}", kernName);
+  DPU_ASSERT(dpu_load(set, kernName, nullptr));
+  free(kernName);
+
+  params args = {
+    .rows_per_dpu = rowsPerDPU,
+    .row_size = n,
+    .alpha = *alpha,
+    .beta = *beta
+  };
+
+  transfer_full_to_mram(set, "args", reinterpret_cast<uint8_t*>(&args), sizeof(args));
+
+  size_t offset = 0;
+  offset = transfer_chunks_to_mram_directly(set, numDPUs, offset, A, rowsPerDPU * n, m * n);
+  offset = transfer_full_to_mram_directly(set, numDPUs, offset, x, n);
+  transfer_chunks_to_mram_directly(set, numDPUs, offset, y, rowsPerDPU, m);
+
+  DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
+
+  //print_output(set);
+
+  transfer_chunks_from_mram_directly(set, numDPUs, offset, y, rowsPerDPU, m);
+
+  DPU_ASSERT(dpu_free(set));
+
+  return 0;
 }
+
+}
+

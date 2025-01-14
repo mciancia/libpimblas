@@ -98,6 +98,38 @@ size_t transfer_full_to_mram_directly(dpu_set_t set, uint32_t nrDPUs, size_t off
   return offset + copySize;
 }
 
+void gemv_launch_statistics(uint32_t m, uint32_t n, uint32_t &numDPUs, uint32_t &rowsPerDPU) {
+  // Assumptions:
+  // MRAM size of each DPU is 64MB
+  // part of A needs to be copied to each DPU - n * rows_per_dpu
+  // x vector needs to be copied to each DPU - n 
+  // part of y vector needs to be copied to each DPU - rows_per_dpu
+  // part of results resides on each DPU - rows_per_dpu
+  // Total ints per DPU: n * (rows_per_dpu + 1) + 2 * rows_per_dpu
+  // Threads per DPU: 16
+  // At minimum two rows per tasklet (because the output needs to be 8B aligned)
+
+  rowsPerDPU = alignUp((m - 1) / numDPUs + 1, 32);
+  size_t memory_requirement = (n * (rowsPerDPU + 1) + 2 * rowsPerDPU) * sizeof(float);
+  
+  // Let's leave 1 MB 
+  constexpr size_t mem_cap = 63 * 1024 * 1024;
+  while (memory_requirement > mem_cap) {
+    rowsPerDPU -= 32;
+    memory_requirement = n * (rowsPerDPU + 1) + 2 * rowsPerDPU;
+  }
+
+  constexpr size_t minRowsPerDPU = 32 * 8 / sizeof(float);
+  if (rowsPerDPU < minRowsPerDPU) {
+    rowsPerDPU = minRowsPerDPU;
+  }
+
+  numDPUs = (m - 1) / rowsPerDPU + 1;
+
+  constexpr uint32_t maxDPUs = 128;
+  assert(numDPUs <= maxDPUs);
+}
+
 // Instantiation
 template size_t transfer_chunks_from_mram_directly<float>(dpu_set_t set, uint32_t nrDPUs, size_t offset, float *data, size_t chunkSize, size_t size);
 
@@ -108,3 +140,4 @@ template size_t transfer_full_to_mram_directly<float>(dpu_set_t set, uint32_t nr
 template size_t transfer_full_to_mram_directly<const float>(dpu_set_t set, uint32_t nrDPUs, size_t offset, const float* data, size_t size);
 
 template void transfer_full_to_mram<uint32_t>(dpu_set_t set, const char *symbol, uint32_t *data, size_t size);
+template void transfer_full_to_mram<uint8_t>(dpu_set_t set, const char *symbol, uint8_t *data, size_t size);
