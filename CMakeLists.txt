@@ -77,6 +77,7 @@ else()
 endif()
 
 if(LOGGING)
+message(STATUS "Downloading spdlog ... ")
 include("cmake/spdlog.cmake")
 add_definitions(-DLOGGING)
 endif()
