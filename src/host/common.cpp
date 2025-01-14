@@ -109,10 +109,8 @@ void sgemm_(const char *transa, const char *transb, const int *m, const int *n, 
       transa, transb, *m, *n, *k, *alpha, reinterpret_cast<const uintptr_t>(a), *lda,
       reinterpret_cast<const uintptr_t>(b), *ldb, *beta, reinterpret_cast<const uintptr_t>(c), *ldc);
 
-  sgemm_wrapper(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
-
   show_debug("handle->sgemm_");
-  show_error("sgemm-catch is not supported !");
+  sgemm_wrapper(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
 }
 
 void sgemv_(const char *trans, const int *m, const int *n, const float *alpha, const float *A, const int *lda,
