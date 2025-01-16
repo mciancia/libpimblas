@@ -72,7 +72,6 @@ void sgemm_f(uint32_t rowsA, uint32_t rowsB, uint32_t colsB, const float *A, con
   size_t A_offset = 0;
   size_t x_offset = transfer_chunks_to_mram_directly(set, numDPUs, 0, A, rowsPerDPU * rowsB, rowsA * rowsB);
 
-
   for (uint32_t i = 0; i < colsB; i++) {
     size_t y_offset = transfer_full_to_mram_directly(set, numDPUs, x_offset, B + rowsB * i, rowsB);
     transfer_chunks_to_mram_directly(set, numDPUs, y_offset, C + rowsA * i, rowsPerDPU, rowsA);
