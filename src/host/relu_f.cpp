@@ -97,7 +97,7 @@ int relu_f(float* input, float* output, size_t size){
     */
    DPU_ASSERT(dpu_alloc(num_of_DPUs, nullptr, &set));
 
-   char *kernName = pimblas_get_kernel_dir_concat_free("relu.kernel");
+   char *kernName = pimblas_get_kernel_dir_concat_free("relu_f.kernel");
    show_debug("kern_path = {}", kernName);
    DPU_ASSERT(dpu_load(set, kernName, nullptr));
    free(kernName);
