@@ -67,6 +67,9 @@ void from_mram(dpu_set_t set, const char *symbol, float *data, size_t len) {
     int split_size = 0;
     get_chunk_size(set, len, split_size);
 
+    float* buffer = new float[nr_dpus*split_size];
+
+    printf("Split size: %d\n", split_size);
     dpu_set_t dpu;
     int dpuid;
     DPU_FOREACH(set, dpu, dpuid) {
@@ -75,11 +78,13 @@ void from_mram(dpu_set_t set, const char *symbol, float *data, size_t len) {
                 dpu,
                 symbol,
                 0,
-                data+(dpuid*split_size),
+                buffer+(dpuid*split_size),
                 split_size*sizeof(uint32_t)
             )
         );
     }
+    memcpy(data, buffer, len*sizeof(float));
+    delete[] buffer;
 }
 
 void set_params(dpu_set_t dpu, uint32_t chunk_len) {
