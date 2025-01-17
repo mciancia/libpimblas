@@ -39,7 +39,7 @@ void get_chunk_size(dpu_set_t set, int vector_len, int &split_size) {
     }
 }
 
-void to_mram(dpu_set_t set, const char *symbol, int32_t *data, size_t len) {
+void to_mram(dpu_set_t set, const char *symbol, float *data, size_t len) {
     uint32_t nr_dpus = 0;
     DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
     int split_size = 0;
@@ -61,7 +61,7 @@ void to_mram(dpu_set_t set, const char *symbol, int32_t *data, size_t len) {
     }
 }
 
-void from_mram(dpu_set_t set, const char *symbol, int32_t *data, size_t len) {
+void from_mram(dpu_set_t set, const char *symbol, float *data, size_t len) {
     uint32_t nr_dpus = 0;
     DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
     int split_size = 0;
@@ -88,7 +88,7 @@ void set_params(dpu_set_t dpu, uint32_t chunk_len) {
     broadcast_mram(dpu, "params", params.data(), PARAM_COUNT*sizeof(int));
 }
 
-int relu_f(int* input, int* output, size_t size){
+int relu_f(float* input, float* output, size_t size){
     uint32_t num_of_DPUs = 2;
     dpu_set_t set;
 

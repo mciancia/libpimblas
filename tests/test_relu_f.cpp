@@ -1,8 +1,8 @@
 #include "common.hpp"
 #include "test_helper.hpp"
 
-std::vector<int32_t> create_sample_data(size_t size) {
-    std::vector<int32_t> buffer(size, 0);
+std::vector<float> create_sample_data(size_t size) {
+    std::vector<float> buffer(size, 0);
     for (size_t i = 0; i < size; i++) {
         buffer[i] = i-(size/2);
     }
@@ -10,7 +10,7 @@ std::vector<int32_t> create_sample_data(size_t size) {
 }
 
 
-void host_relu(int* input, int* output, size_t size) {
+void host_relu(float* input, float* output, size_t size) {
     for (size_t i = 0; i < size; i++) {
         output[i] = input[i] > 0 ? input[i] : 0;
     }
@@ -19,14 +19,14 @@ void host_relu(int* input, int* output, size_t size) {
 
 int main(int argc, char **argv) {
     auto sample_data = create_sample_data(100);
-    int32_t *result = new int32_t[sample_data.size()];
+    float *result = new float[sample_data.size()];
     relu_f(sample_data.data(), result, sample_data.size());
 
-    int32_t *result_host = new int32_t[sample_data.size()];
+    float *result_host = new float[sample_data.size()];
     host_relu(sample_data.data(), result_host, sample_data.size());
 
     for (size_t i = 0; i < sample_data.size(); i++) {
-        if (result[i] != result_host[i]) {
+        if ( abs(result[i]-result_host[i]) > 0.0001 ) {
             RET_TEST_FAIL;
         }
     }

@@ -34,7 +34,7 @@ void sgemm_wrapper(const char *transa, const char *transb, const int *m, const i
                    const float *a, const int *lda, const float *b, const int *ldb, const float *beta, float *c,
                    const int *ldc);
 
-int relu_f(int32_t *input, int32_t *output, size_t num_elem);
+int relu_f(float *input, float *output, size_t num_elem);
 
 /* CBLAS API */
 
