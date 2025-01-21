@@ -40,51 +40,65 @@ void get_chunk_size(dpu_set_t set, int vector_len, int &split_size) {
 }
 
 void to_mram(dpu_set_t set, const char *symbol, float *data, size_t len) {
-    uint32_t nr_dpus = 0;
+    // uint32_t nr_dpus = 0;
+    // DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
+    // int split_size = 0;
+    // get_chunk_size(set, len, split_size);
+
+    // dpu_set_t dpu;
+    // int dpuid;
+    // DPU_FOREACH(set, dpu, dpuid) {
+    //     DPU_ASSERT(
+    //         dpu_copy_to(
+    //             dpu,
+    //             symbol,
+    //             0,
+    //             data+(dpuid*split_size),
+    //             split_size*sizeof(uint32_t)
+    //         )
+    //     );
+    //     printf("DPU %d is getting data from: %d to %d\n", dpuid, (int)(dpuid*split_size*sizeof(uint32_t)), (int)(dpuid*split_size*sizeof(uint32_t)));
+    // }
+
+    uint32_t nr_dpus;
     DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
     int split_size = 0;
     get_chunk_size(set, len, split_size);
-
-    dpu_set_t dpu;
-    int dpuid;
-    DPU_FOREACH(set, dpu, dpuid) {
-        DPU_ASSERT(
-            dpu_copy_to(
-                dpu,
-                symbol,
-                0,
-                data+(dpuid*split_size),
-                split_size*sizeof(uint32_t)
-            )
-        );
-        printf("DPU %d is getting data from: %d to %d\n", dpuid, (int)(dpuid*split_size*sizeof(uint32_t)), (int)(dpuid*split_size*sizeof(uint32_t)));
-    }
+    transfer_chunks_to_mram_directly(set, nr_dpus, 0, data, split_size, len);
 }
 
 void from_mram(dpu_set_t set, const char *symbol, float *data, size_t len) {
-    uint32_t nr_dpus = 0;
+    // uint32_t nr_dpus = 0;
+    // DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
+    // int split_size = 0;
+    // get_chunk_size(set, len, split_size);
+
+    // // float* buffer = new float[nr_dpus*split_size];
+
+    // // printf("Split size: %d\n", split_size);
+    // // dpu_set_t dpu;
+    // // int dpuid;
+    // // DPU_FOREACH(set, dpu, dpuid) {
+    // //     DPU_ASSERT(
+    // //         dpu_copy_from(
+    // //             dpu,
+    // //             symbol,
+    // //             0,
+    // //             buffer+(dpuid*split_size),
+    // //             split_size*sizeof(uint32_t)
+    // //         )
+    // //     );
+    // // }
+    // // memcpy(data, buffer, len*sizeof(float));
+    // // delete[] buffer;
+
+
+    uint32_t nr_dpus;
     DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
-    int split_size = 0;
+    int split_size;
     get_chunk_size(set, len, split_size);
-
-    float* buffer = new float[nr_dpus*split_size];
-
-    printf("Split size: %d\n", split_size);
-    dpu_set_t dpu;
-    int dpuid;
-    DPU_FOREACH(set, dpu, dpuid) {
-        DPU_ASSERT(
-            dpu_copy_from(
-                dpu,
-                symbol,
-                0,
-                buffer+(dpuid*split_size),
-                split_size*sizeof(uint32_t)
-            )
-        );
-    }
-    memcpy(data, buffer, len*sizeof(float));
-    delete[] buffer;
+    // transfer_chunks_from_mram(set, symbol, data, split_size, len);
+    transfer_chunks_from_mram_directly(set, nr_dpus, 0, data, split_size, len);
 }
 
 void set_params(dpu_set_t dpu, uint32_t chunk_len) {
@@ -94,7 +108,8 @@ void set_params(dpu_set_t dpu, uint32_t chunk_len) {
 }
 
 int relu_f(float* input, float* output, size_t size){
-    uint32_t num_of_DPUs = 2;
+    printf("Running relu once...\n");
+    uint32_t num_of_DPUs = 1;
     dpu_set_t set;
 
     /*
@@ -103,8 +118,9 @@ int relu_f(float* input, float* output, size_t size){
    DPU_ASSERT(dpu_alloc(num_of_DPUs, nullptr, &set));
 
    char *kernName = pimblas_get_kernel_dir_concat_free("relu_f.kernel");
-   show_debug("kern_path = {}", kernName);
-   DPU_ASSERT(dpu_load(set, kernName, nullptr));
+   printf("Kernel name: %s\n", kernName);
+//    show_debug("kern_path = {}", kernName);
+   DPU_ASSERT(dpu_load(set, kernName, NULL));
    free(kernName);
 
 
@@ -113,15 +129,16 @@ int relu_f(float* input, float* output, size_t size){
    printf("Chunk size: %d\n", chunk_size);
    set_params(set, chunk_size);
 
-   to_mram(set, "buffer", input, size);
+//    to_mram(set, "buffer", input, size);
    DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
 
    dpu_set_t dpu;
    DPU_FOREACH(set, dpu) {
+    std::cout << "DPU log: " << std::endl;
     DPU_ASSERT(dpu_log_read(dpu, stdout));
    }
-
-   from_mram(set, "buffer", output, size);
+DPU_ASSERT(dpu_free(set));
+//    from_mram(set, "buffer", output, size);
 
    return 0;
 
