@@ -17,7 +17,7 @@ option(BUILD_TORCH_CPU_BLAS_CATCH "Build torch_blas_catch" ON)
 
 
 if(NOT DEFINED NR_TASKLETS)
-  set(NR_TASKLETS "16")  # optimal usage
+  set(NR_TASKLETS "1")  # optimal usage
 endif()
 
 

@@ -45,6 +45,8 @@ void to_mram(dpu_set_t set, const char *symbol, float *data, size_t len) {
     int split_size = 0;
     get_chunk_size(set, len, split_size);
 
+
+    printf("Split size: %d\n", split_size);
     dpu_set_t dpu;
     int dpuid;
     DPU_FOREACH(set, dpu, dpuid) {
@@ -94,7 +96,7 @@ void set_params(dpu_set_t dpu, uint32_t chunk_len) {
 }
 
 int relu_f(float* input, float* output, size_t size){
-    uint32_t num_of_DPUs = 2;
+    uint32_t num_of_DPUs = 64;
     dpu_set_t set;
 
     /*
