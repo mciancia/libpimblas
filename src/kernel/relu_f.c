@@ -4,6 +4,8 @@
 
 
 #define BUFFER_SIZE  512
+// 32MB of MRAM allocation
+#define MRAM_ALLOCATION (1024*1024*8)
 __mram_noinit float buffer[BUFFER_SIZE];
 __mram_noinit int32_t params[4];
 
@@ -11,10 +13,10 @@ __mram_noinit int32_t params[4];
 int main() {
     __dma_aligned float local_cache[BUFFER_SIZE];
     int tasklet_id = me();
-    // printf("Tasklet id: %d\n", tasklet_id);
-    // if (tasklet_id > 1) {
-    //     return 0;
-    // }
+    if (tasklet_id > 0) {
+        return 0;
+    }
+    
     int actionable_length = params[0];
     printf("Actionable length: %d\n", actionable_length);
     if (( actionable_length %2) != 0) {
