@@ -157,7 +157,7 @@ extern "C" {
     }
 
     int relu_f(float* input, float* output, size_t size){
-        uint32_t num_of_DPUs = 1280;
+        uint32_t num_of_DPUs = 64;
         dpu_set_t set;
         DPU_ASSERT(dpu_alloc(num_of_DPUs, nullptr, &set));
 

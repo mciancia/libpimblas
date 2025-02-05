@@ -21,7 +21,7 @@ void host_relu(float* input, float* output, size_t size) {
 
 
 int main(int argc, char **argv) {
-    auto sample_data = create_sample_data(64000);
+    auto sample_data = create_sample_data(200000);
     float *result = new float[sample_data.size()];
     relu_f(sample_data.data(), result, sample_data.size());
 
@@ -29,15 +29,10 @@ int main(int argc, char **argv) {
     host_relu(sample_data.data(), result_host, sample_data.size());
     for (size_t i = 0; i < sample_data.size(); i++) {
         if ( abs(result[i]-result_host[i]) > 0.01 ) {
-            for(int j = 0; j < sample_data.size(); j++){
-                std::cout << 
-                    std::fixed << std::setprecision(std::numeric_limits<float>::max_digits10) <<
-                    "Host: " << result_host[j] << 
-                    " DPU: " << result[j] << 
-                    " Diff: " << abs(result[j]-result_host[j]) <<  std::endl;
-            }
+            printf("TEST FAILED\n");
             RET_TEST_FAIL;
         }
     }
+    printf("TEST OK\n");
     RET_TEST_OK;
 }
