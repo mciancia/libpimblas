@@ -6,7 +6,7 @@
 #define PARAM_COUNT 4
 #define VECTOR_LEN_POS 0
 
-void trasnfer_chunks_to_mram(dpu_set_t set, const char *symbol, float *data, size_t chunk_size, size_t size) {
+void transfer_chunks_to_mram(dpu_set_t set, const char *symbol, float *data, size_t chunk_size, size_t size) {
     bool has_reminder = size % chunk_size != 0;
 
     uint32_t nr_dpus = 0;
