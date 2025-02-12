@@ -1,87 +1,104 @@
 #include <cassert>
+#include <chrono>
 
-#include "common.hpp"
 #include "dpu_transfer_helper.hpp"
+#include "gemvf_kernel.hpp"
 
-template <typename T>
-void transposeMatrix(const T *matrix, T *result, size_t rows, size_t cols) {
-  for (size_t i = 0; i < rows; i++) {
-    for (size_t j = 0; j < cols; j++) {
-      result[j * rows + i] = matrix[i * cols + j];
-    }
+#include "matrix_transpose.hpp"
+
+template <typename Kernel>
+Kernel &get_free_kernel(std::vector<Kernel> &kernels, size_t &cur_kernel) {
+  if (cur_kernel >= kernels.size()) {
+    cur_kernel = 0;
   }
-}
+  auto &kernel = kernels[cur_kernel];
+  cur_kernel++;
+  return kernel;
+  /*
 
-template <typename T>
-void convertRowToColumnMajor(const T *rowMajor, T *columnMajor, size_t rows, size_t cols, size_t ld) {
-  for (size_t i = 0; i < rows; i++) {
-    for (size_t j = 0; j < cols; j++) {
-      columnMajor[j * rows + i] = rowMajor[i * ld + j];
-    }
+  if (false == kernel.running) {
+    kernel.running = true;
+    cur_kernel++;
+    return kernel;
+  } else {
+    kernel.sync();
+    kernel.running = false;
+    cur_kernel++;
+    return kernel;
   }
-}
-
-template <typename T>
-void convertColumnToRowMajor(const T *columnMajor, T *rowMajor, size_t rows, size_t cols, size_t ld) {
-  for (size_t i = 0; i < rows; i++) {
-    for (size_t j = 0; j < cols; j++) {
-      rowMajor[i * cols + j] = columnMajor[j * ld + i];
-    }
-  }
-}
-
-void calculate_single_row(dpu_set_t set, uint32_t numDPUs, uint32_t rowsPerDPU, uint32_t m, uint32_t n, size_t x_offset,
-                          const float *vecB, float *vecC) {
-  size_t y_offset = transfer_full_to_mram_directly(set, numDPUs, x_offset, vecB, n);
-  transfer_chunks_to_mram_directly(set, numDPUs, y_offset, vecC, rowsPerDPU, m);
-
-  DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
-
-  transfer_chunks_from_mram_directly(set, numDPUs, y_offset, vecC, rowsPerDPU, m);
+  */
 }
 
 // Assumption A is in row order, B and C are in column order
 // A is of size rowsA x rowsB
 // B rowsB x colsB
 // C rowsA x rowsB
-void sgemm_f(uint32_t rowsA, uint32_t rowsB, uint32_t colsB, const float *A, const float *B, float *C, float alpha,
-             float beta) {
-  uint32_t numDPUs = 64;
-  uint32_t rowsPerDPU;
-  gemv_launch_statistics(rowsA, rowsB, numDPUs, rowsPerDPU);
+void sgemm_f(uint32_t rowsA, uint32_t rowsB, uint32_t colsB, const float *A, const float *B, float *C,
+             const float *alpha, const float *beta) {
+  uint32_t nr_dpus = 512;
+  uint32_t rows_per_dpu = 0;
+  gemv_launch_statistics<float>(rowsA, rowsB, nr_dpus, rows_per_dpu);
 
-  dpu_set_t set;
-  DPU_ASSERT(dpu_alloc(numDPUs, nullptr, &set));
+  auto nr_kernels = colsB;
 
-  char *kernName = pimblas_get_kernel_dir_concat_free("gemv_f_y.kernel");
-  show_debug("kern_path = {}", kernName);
-  DPU_ASSERT(dpu_load(set, kernName, nullptr));
-  free(kernName);
+  if (*beta == 0.0f) {
+   std::vector<GEMVF_Kernel> kernels(nr_kernels);
+    size_t kernel_it = 0;
+    for (kernel_it = 0; kernel_it < kernels.size(); kernel_it++) {
+      auto &kernel = kernels[kernel_it];
+      if (kernel.init(rowsA, rowsB, nr_dpus, rows_per_dpu) == false) {
+        break;
+      }
 
-  struct params {
-    uint32_t rows_per_dpu;
-    uint32_t row_size;
-    float alpha;
-    float beta;
-  };
+      kernel.set_params(alpha, false);
+      kernel.set_A(A, true);
+    }
+    kernels.resize(kernel_it);
 
-  params args = {.rows_per_dpu = rowsPerDPU, .row_size = rowsB, .alpha = alpha, .beta = beta};
+    show_trace("Running {} kernels. Each kernel with {} DPUs.\n", kernels.size(), nr_dpus);
 
-  transfer_full_to_mram(set, "args", reinterpret_cast<uint8_t *>(&args), sizeof(args));
+    size_t cur_kernel = 0;
+    for (uint32_t i = 0; i < colsB; i++) {
+      auto &kernel = get_free_kernel(kernels, cur_kernel);
+      kernel.set_x(B + rowsB * i, true);
+      kernel.launch(true);
+      kernel.get_y(C + rowsA * i, true);
+    }
 
-  size_t A_offset = 0;
-  size_t x_offset = transfer_chunks_to_mram_directly(set, numDPUs, 0, A, rowsPerDPU * rowsB, rowsA * rowsB);
+    for (auto &kernel : kernels) {
+      kernel.sync();
+      kernel.free_dpus();
+    }
+  } else {
+    std::vector<GEMVF_Kernel_Beta> kernels(nr_kernels);
+    size_t kernel_it = 0;
+    for (kernel_it = 0; kernel_it < kernels.size(); kernel_it++) {
+      auto &kernel = kernels[kernel_it];
+      if (kernel.init(rowsA, rowsB, nr_dpus, rows_per_dpu) == false) {
+        break;
+      }
 
-  for (uint32_t i = 0; i < colsB; i++) {
-    size_t y_offset = transfer_full_to_mram_directly(set, numDPUs, x_offset, B + rowsB * i, rowsB);
-    transfer_chunks_to_mram_directly(set, numDPUs, y_offset, C + rowsA * i, rowsPerDPU, rowsA);
+      kernel.set_params(alpha, beta, false);
+      kernel.set_A(A, true);
+    }
+    kernels.resize(kernel_it);
 
-    DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
+    show_trace("Running {} kernels. Each kernel with {} DPUs.\n", kernels.size(), nr_dpus);
 
-    transfer_chunks_from_mram_directly(set, numDPUs, y_offset, C + rowsA * i, rowsPerDPU, rowsA);
+    size_t cur_kernel = 0;
+    for (uint32_t i = 0; i < colsB; i++) {
+      auto &kernel = get_free_kernel(kernels, cur_kernel);
+      kernel.set_x(B + rowsB * i, true);
+      kernel.set_y(C + rowsA * i, true);
+      kernel.launch(true);
+      kernel.get_y(C + rowsA * i, true);
+    }
+
+    for (auto &kernel : kernels) {
+      kernel.sync();
+      kernel.free_dpus();
+    }
   }
-
-  DPU_ASSERT(dpu_free(set));
 }
 
 bool is_transpose(char trans) {
@@ -101,7 +118,6 @@ bool is_transpose(char trans) {
 // op(A) is an m by k matrix
 // op(B) is a k by n matrix
 // C is an m by n matrix
-
 void sgemm_wrapper(const char *transa, const char *transb, const int *m, const int *n, const int *k, const float *alpha,
                    const float *a, const int *lda, const float *b, const int *ldb, const float *beta, float *c,
                    const int *ldc) {
@@ -115,9 +131,7 @@ void sgemm_wrapper(const char *transa, const char *transb, const int *m, const i
     // it with our algorithm.
     assert(*lda == *m && "Unexpected padding in matrix A - UNHANDLED");
     a_tmp_buffer = reinterpret_cast<float *>(malloc(alignUp(*m * *k * sizeof(float), 8)));
-
-    convertColumnToRowMajor(a, a_tmp_buffer, *m, *k, *lda);
-
+    transpose_matrix_column_major(a, a_tmp_buffer, *m, *k);
     a_buffer = a_tmp_buffer;
   } else {
     // Matrix is in column major order
@@ -141,14 +155,14 @@ void sgemm_wrapper(const char *transa, const char *transb, const int *m, const i
     // we got B (LDB/n, k) and we need it to be B**T (k, n)
     assert(*ldb == *n && "Unexpected padding in matrix B - UNHANDLED");
     b_tmp_buffer = reinterpret_cast<float *>(malloc(alignUp(*n * *k * sizeof(float), 8)));
-    convertColumnToRowMajor(b, b_tmp_buffer, *n, *k, *k);
+    transpose_matrix_column_major(b, b_tmp_buffer, *n, *k);
     b_buffer = b_tmp_buffer;
   }
 
   // C is already in column major order no need to do anything
   assert(*ldc == *m && "Unexpected padding in matrix C - UNHANDLED");
 
-  sgemm_f(*m, *k, *n, a_buffer, b_buffer, c, *alpha, *beta);
+  sgemm_f(*m, *k, *n, a_buffer, b_buffer, c, alpha, beta);
 
   free(a_tmp_buffer);
   free(b_tmp_buffer);
