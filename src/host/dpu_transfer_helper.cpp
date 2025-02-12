@@ -1,7 +1,8 @@
 #include "dpu_transfer_helper.hpp"
 
-#include "common.hpp"
 #include <cassert>
+
+#include "common.hpp"
 
 template <typename T>
 void gemv_launch_statistics(uint32_t m, uint32_t n, uint32_t &numDPUs, uint32_t &rowsPerDPU) {
