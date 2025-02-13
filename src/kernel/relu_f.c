@@ -16,7 +16,7 @@ int main() {
   }
 
   int actionable_length = params[0];
-  printf("Actionable length: %d\n", actionable_length);
+  // printf("Actionable length: %d\n", actionable_length);
   if ((actionable_length % 2) != 0) {
     printf("Actionable len not aligen to 8\n");
     return 0;

@@ -10,13 +10,14 @@ void transfer_chunks_to_mram(dpu_set_t set, const char *symbol, float *data, siz
   uint32_t nr_dpus = 0;
   DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
 
-  has_reminder = has_reminder && (nr_dpus * chunk_size < size);
+  // has_reminder = has_reminder && (nr_dpus * chunk_size < size);
   dpu_set_t dpu;
   uint32_t dpu_idx;
   DPU_FOREACH(set, dpu, dpu_idx) {
     auto offset = dpu_idx * chunk_size;
     if (has_reminder && dpu_idx + 1 == nr_dpus) {
       size_t remainder = size - offset;
+      printf("remainder: %zu\n", remainder);
       DPU_ASSERT(
           dpu_broadcast_to(dpu, symbol, 0, &data[offset], alignUp(remainder * sizeof(float), 8), DPU_XFER_DEFAULT));
     } else {
@@ -31,7 +32,7 @@ void transfer_chunks_from_mram(dpu_set_t set, const char *symbol, float *data, s
   uint32_t nr_dpus = 0;
   DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
 
-  has_reminder = has_reminder && (nr_dpus * chunk_size < size);
+  // has_reminder = has_reminder && (nr_dpus * chunk_size < size);
   dpu_set_t dpu;
   uint32_t dpu_idx;
   DPU_FOREACH(set, dpu, dpu_idx) {
@@ -56,18 +57,8 @@ void broadcast_mram(dpu_set_t set, const char *symbol, int *data, size_t size) {
 void get_chunk_size(dpu_set_t set, int vector_len, int &split_size) {
   uint32_t nr_dpus = 0;
   DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
+  split_size = vector_len / (nr_dpus-1);
 
-  // Lets split out memory as evenly as we can between N DPUs, while having each chunk even in size
-  split_size = vector_len / nr_dpus;
-
-  // If the vector length is not divisible by number of dpus, we need to add 1 to the split size
-  if (vector_len % nr_dpus != 0) {
-    split_size++;
-  }
-  // if the split size in not even, we need to align it to the nearest even number
-  if (split_size % 2 != 0) {
-    split_size++;
-  }
 }
 
 void to_mram(dpu_set_t set, const char *symbol, float *data, size_t len) {
@@ -85,10 +76,7 @@ void from_mram(dpu_set_t set, const char *symbol, float *data, size_t len) {
 
   int split_size = 0;
   get_chunk_size(set, len, split_size);
-  float *buffer = new float[nr_dpus * split_size];
-  transfer_chunks_from_mram(set, symbol, buffer, split_size, len);
-  memcpy(data, buffer, len * sizeof(float));
-  delete[] buffer;
+  transfer_chunks_from_mram(set, symbol, data, split_size, len);
 }
 
 void set_params(dpu_set_t set, uint32_t chunk_len) {
@@ -115,10 +103,11 @@ int relu_f(float *input, float *output, size_t size) {
   to_mram(set, "buffer", input, size);
   DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
 
-  dpu_set_t dpu;
-  DPU_FOREACH(set, dpu) { DPU_ASSERT(dpu_log_read(dpu, stdout)); }
+  // dpu_set_t dpu;
+  // DPU_FOREACH(set, dpu) { DPU_ASSERT(dpu_log_read(dpu, stdout)); }
 
   from_mram(set, "buffer", output, size);
+  DPU_ASSERT(dpu_free(set));
   return 0;
 }
 }

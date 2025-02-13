@@ -18,18 +18,28 @@ void host_relu(float *input, float *output, size_t size) {
   }
 }
 
-int main(int argc, char **argv) {
-  auto sample_data = create_sample_data(512000000);
-  float *result = new float[sample_data.size()];
-  relu_f(sample_data.data(), result, sample_data.size());
 
-  float *result_host = new float[sample_data.size()];
-  host_relu(sample_data.data(), result_host, sample_data.size());
+int single_test(size_t size) {
+  auto sample_data = create_sample_data(size);
+  // float *result = new float[sample_data.size()];
+  std::vector<float> result_dpu(sample_data.size());
+  relu_f(sample_data.data(), result_dpu.data(), sample_data.size());
+
+  std::vector<float> result_host(sample_data.size());
+  host_relu(sample_data.data(), result_host.data(), sample_data.size());
   for (size_t i = 0; i < sample_data.size(); i++) {
-    if (abs(result[i] - result_host[i]) > 0.01) {
+    if (abs(result_dpu[i] - result_host[i]) > 0.01) {
       printf("TEST FAILED\n");
-      RET_TEST_FAIL;
+      return -1;
     }
+  }
+  return 0;
+}
+int main(int argc, char **argv) {
+  auto result = single_test(512000);
+  if(result != 0){
+    printf("TEST FAILED\n");
+    RET_TEST_FAIL;
   }
   printf("TEST OK\n");
   RET_TEST_OK;
