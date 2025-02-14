@@ -40,7 +40,7 @@ void gemm_row_maj_f(const int *m, const int *n, const int *k, const float *alpha
                     const float *beta, float *c);
 
 int relu_f(float *input, float *output, size_t num_elem);
-int vec_add_f(float *input_a, float *input_b, float *output, size_t size, int num_dpus);
+int vec_add_f(const float *input_a, const float *input_b, float *output, size_t size);
 
 /* CBLAS API */
 

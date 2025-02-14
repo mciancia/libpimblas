@@ -7,7 +7,7 @@
 #include "dpu_transfer_helper.hpp"
 
 // Forward declarations
-void transfer_chunks_to_mram2(dpu_set_t set, const char *symbol, float *data, size_t chunk_size, size_t size);
+void transfer_chunks_to_mram2(dpu_set_t set, const char *symbol, const float *data, size_t chunk_size, size_t size);
 void transfer_chunks_from_mram2(dpu_set_t set, const char *symbol, float *data, size_t chunk_size, size_t size);
 
 void get_chunk_size2(dpu_set_t set, int vector_len, int &split_size) {
@@ -30,7 +30,7 @@ void get_chunk_size2(dpu_set_t set, int vector_len, int &split_size) {
 void broadcast_mram2(dpu_set_t set, const char *symbol, int *data, size_t size) {
   DPU_ASSERT(dpu_broadcast_to(set, symbol, 0, data, size, DPU_XFER_DEFAULT));
 }
-void to_mram2(dpu_set_t set, const char *symbol, float *data, size_t len) {
+void to_mram2(dpu_set_t set, const char *symbol, const float *data, size_t len) {
   uint32_t nr_dpus = 0;
   DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
 
@@ -51,7 +51,7 @@ void from_mram2(dpu_set_t set, const char *symbol, float *data, size_t len) {
   delete[] buffer;
 }
 
-void transfer_chunks_to_mram2(dpu_set_t set, const char *symbol, float *data, size_t chunk_size, size_t size) {
+void transfer_chunks_to_mram2(dpu_set_t set, const char *symbol, const float *data, size_t chunk_size, size_t size) {
   bool has_reminder = size % chunk_size != 0;
 
   uint32_t nr_dpus = 0;

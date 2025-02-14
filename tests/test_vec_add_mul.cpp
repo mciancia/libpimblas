@@ -29,7 +29,7 @@ int single_test(size_t size, int num_dpus) {
   auto sample_data_b = create_sample_data(size);
 
   float *result = new float[size];
-  vec_add_f(sample_data_a.data(), sample_data_b.data(), result, size, num_dpus);
+  vec_add_f(sample_data_a.data(), sample_data_b.data(), result, size);
 
   float *result_host = new float[size];
   host_add(sample_data_a.data(), sample_data_b.data(), result_host, size);
@@ -43,9 +43,11 @@ int single_test(size_t size, int num_dpus) {
 }
 
 int main(int argc, char **argv) {
-  if (single_test(10000, 64) != 0) {
-    printf("TEST FAILED\n");
-    RET_TEST_FAIL;
+  for(int i = 0; i<10; i++){
+    if (single_test(10000+i, 64-i) != 0) {
+      printf("TEST FAILED\n");
+      RET_TEST_FAIL;
+    }
   }
   printf("TEST OK\n");
   RET_TEST_OK;
