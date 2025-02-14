@@ -5,46 +5,48 @@
 #define VECTOR_LEN_POS 0
 
 void transfer_chunks_to_mram(dpu_set_t set, const char *symbol, float *data, size_t chunk_size, size_t size) {
-  bool has_reminder = size % chunk_size != 0;
+  transfer_chunks(set, 64, DPU_XFER_TO_DPU, DPU_XFER_DEFAULT, symbol, 0, data, chunk_size, size);
+  // bool has_reminder = size % chunk_size != 0;
 
-  uint32_t nr_dpus = 0;
-  DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
+  // uint32_t nr_dpus = 0;
+  // DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
 
-  // has_reminder = has_reminder && (nr_dpus * chunk_size < size);
-  dpu_set_t dpu;
-  uint32_t dpu_idx;
-  DPU_FOREACH(set, dpu, dpu_idx) {
-    auto offset = dpu_idx * chunk_size;
-    if (has_reminder && dpu_idx + 1 == nr_dpus) {
-      size_t remainder = size - offset;
-      printf("remainder: %zu\n", remainder);
-      DPU_ASSERT(
-          dpu_broadcast_to(dpu, symbol, 0, &data[offset], alignUp(remainder * sizeof(float), 8), DPU_XFER_DEFAULT));
-    } else {
-      DPU_ASSERT(dpu_prepare_xfer(dpu, (void *)&data[offset]));
-    }
-  }
-  DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, symbol, 0, chunk_size * sizeof(float), DPU_XFER_DEFAULT));
+  // // has_reminder = has_reminder && (nr_dpus * chunk_size < size);
+  // dpu_set_t dpu;
+  // uint32_t dpu_idx;
+  // DPU_FOREACH(set, dpu, dpu_idx) {
+  //   auto offset = dpu_idx * chunk_size;
+  //   if (has_reminder && dpu_idx + 1 == nr_dpus) {
+  //     size_t remainder = size - offset;
+  //     printf("remainder: %zu\n", remainder);
+  //     DPU_ASSERT(
+  //         dpu_broadcast_to(dpu, symbol, 0, &data[offset], alignUp(remainder * sizeof(float), 8), DPU_XFER_DEFAULT));
+  //   } else {
+  //     DPU_ASSERT(dpu_prepare_xfer(dpu, (void *)&data[offset]));
+  //   }
+  // }
+  // DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, symbol, 0, chunk_size * sizeof(float), DPU_XFER_DEFAULT));
 }
 
 void transfer_chunks_from_mram(dpu_set_t set, const char *symbol, float *data, size_t chunk_size, size_t size) {
-  bool has_reminder = size % chunk_size != 0;
-  uint32_t nr_dpus = 0;
-  DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
+  transfer_chunks(set, 64, DPU_XFER_FROM_DPU, DPU_XFER_DEFAULT, symbol, 0, data, chunk_size, size);
+  // bool has_reminder = size % chunk_size != 0;
+  // uint32_t nr_dpus = 0;
+  // DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
 
-  // has_reminder = has_reminder && (nr_dpus * chunk_size < size);
-  dpu_set_t dpu;
-  uint32_t dpu_idx;
-  DPU_FOREACH(set, dpu, dpu_idx) {
-    auto offset = dpu_idx * chunk_size;
-    if (has_reminder && dpu_idx + 1 == nr_dpus) {
-      size_t remainder = size - offset;
-      DPU_ASSERT(dpu_copy_from(dpu, symbol, 0, &data[offset], alignUp(remainder * sizeof(float), 8)));
-    } else {
-      DPU_ASSERT(dpu_prepare_xfer(dpu, &data[offset]));
-    }
-  }
-  DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_FROM_DPU, symbol, 0, chunk_size * sizeof(float), DPU_XFER_DEFAULT));
+  // // has_reminder = has_reminder && (nr_dpus * chunk_size < size);
+  // dpu_set_t dpu;
+  // uint32_t dpu_idx;
+  // DPU_FOREACH(set, dpu, dpu_idx) {
+  //   auto offset = dpu_idx * chunk_size;
+  //   if (has_reminder && dpu_idx + 1 == nr_dpus) {
+  //     size_t remainder = size - offset;
+  //     DPU_ASSERT(dpu_copy_from(dpu, symbol, 0, &data[offset], alignUp(remainder * sizeof(float), 8)));
+  //   } else {
+  //     DPU_ASSERT(dpu_prepare_xfer(dpu, &data[offset]));
+  //   }
+  // }
+  // DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_FROM_DPU, symbol, 0, chunk_size * sizeof(float), DPU_XFER_DEFAULT));
 }
 
 extern "C" {
@@ -61,23 +63,16 @@ void get_chunk_size(dpu_set_t set, int vector_len, int &split_size) {
 
 }
 
-void to_mram(dpu_set_t set, const char *symbol, float *data, size_t len) {
-  uint32_t nr_dpus = 0;
-  DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
 
-  int chunk_size = 0;
-  get_chunk_size(set, len, chunk_size);
-  transfer_chunks_to_mram(set, symbol, data, chunk_size, len);
-}
 
-void from_mram(dpu_set_t set, const char *symbol, float *data, size_t len) {
-  uint32_t nr_dpus = 0;
-  DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
+// void from_mram(dpu_set_t set, const char *symbol, float *data, size_t len) {
+//   uint32_t nr_dpus = 0;
+//   DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
 
-  int split_size = 0;
-  get_chunk_size(set, len, split_size);
-  transfer_chunks_from_mram(set, symbol, data, split_size, len);
-}
+//   int split_size = 0;
+//   get_chunk_size(set, len, split_size);
+//   transfer_chunks_from_mram(set, symbol, data, split_size, len);
+// }
 
 void set_params(dpu_set_t set, uint32_t chunk_len) {
   std::vector<int> params(PARAM_COUNT, 0);
@@ -99,15 +94,26 @@ int relu_f(float *input, float *output, size_t size) {
   get_chunk_size(set, size, chunk_size);
   printf("Chunk size: %d\n", chunk_size);
   set_params(set, chunk_size);
+  transfer_chunks_to_mram(set, "buffer", input, chunk_size, size);
+  // to_mram(set, "buffer", input, size);
 
-  to_mram(set, "buffer", input, size);
   DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
 
   // dpu_set_t dpu;
   // DPU_FOREACH(set, dpu) { DPU_ASSERT(dpu_log_read(dpu, stdout)); }
 
-  from_mram(set, "buffer", output, size);
+  // from_mram(set, "buffer", output, size);
+  transfer_chunks_from_mram(set, "buffer", output, chunk_size, size);
   DPU_ASSERT(dpu_free(set));
   return 0;
 }
 }
+
+// void to_mram(dpu_set_t set, const char *symbol, float *data, size_t len) {
+//   uint32_t nr_dpus = 0;
+//   DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
+
+//   int chunk_size = 0;
+//   get_chunk_size(set, len, chunk_size);
+//   transfer_chunks_to_mram(set, symbol, data, chunk_size, len);
+// }
