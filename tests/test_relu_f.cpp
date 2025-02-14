@@ -18,7 +18,6 @@ void host_relu(float *input, float *output, size_t size) {
   }
 }
 
-
 int single_test(size_t size) {
   auto sample_data = create_sample_data(size);
   // float *result = new float[sample_data.size()];
