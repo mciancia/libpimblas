@@ -39,7 +39,7 @@ void sgemm_wrapper(const char *transa, const char *transb, const int *m, const i
 void gemm_row_maj_f(const int *m, const int *n, const int *k, const float *alpha, const float *a, const float *b,
                     const float *beta, float *c);
 
-int relu_f(float *input, float *output, size_t num_elem);
+int relu_f(const float *input, float *output, size_t num_elem);
 int vec_add_f(const float *input_a, const float *input_b, float *output, size_t size);
 
 /* CBLAS API */

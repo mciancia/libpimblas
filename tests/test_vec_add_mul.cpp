@@ -24,7 +24,7 @@ void host_mul(float *input_a, float *input_b, float *output, size_t size) {
   }
 }
 
-int single_test(size_t size, int num_dpus) {
+int single_test(size_t size) {
   auto sample_data_a = create_sample_data(size);
   auto sample_data_b = create_sample_data(size);
 
@@ -44,7 +44,7 @@ int single_test(size_t size, int num_dpus) {
 
 int main(int argc, char **argv) {
   for(int i = 0; i<10; i++){
-    if (single_test(10000+i, 64-i) != 0) {
+    if (single_test(10000+i) != 0) {
       printf("TEST FAILED\n");
       RET_TEST_FAIL;
     }
