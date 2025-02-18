@@ -14,6 +14,7 @@ __mram_noinit int32_t params[4];
 #define OP_TYPE_POS 1
 #define VEC_ADD 1
 #define VEC_MUL 2
+#define VEC_SUB 3
 
 int main() {
   __dma_aligned float local_cache_a[BUFFER_SIZE];
@@ -59,6 +60,8 @@ int main() {
         local_cache_a[j] = local_cache_a[j] + local_cache_b[j];
       } else if (params[OP_TYPE_POS] == VEC_MUL) {
         local_cache_a[j] = local_cache_a[j] * local_cache_b[j];
+      } else if (params[OP_TYPE_POS] == VEC_SUB) {
+        local_cache_a[j] = local_cache_a[j] - local_cache_b[j];
       }
     }
     mram_write(local_cache_a, buffer_a + (full_copies * BUFFER_SIZE), reminder * sizeof(float));

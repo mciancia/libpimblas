@@ -41,6 +41,8 @@ void gemm_row_maj_f(const int *m, const int *n, const int *k, const float *alpha
 
 int relu_f(const float *input, float *output, size_t num_elem);
 int vec_add_f(const float *input_a, const float *input_b, float *output, size_t size);
+int vec_mul_f(const float *input_a, const float *input_b, float *output, size_t size);
+int vec_sub_f(const float *input_a, const float *input_b, float *output, size_t size);
 
 /* CBLAS API */
 

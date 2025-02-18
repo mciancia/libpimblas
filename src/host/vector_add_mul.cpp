@@ -7,6 +7,7 @@
 #define OP_TYPE_POS 1
 #define VEC_ADD 1
 #define VEC_MUL 2
+#define VEC_SUB 3
 
 extern "C" {
 int vec_add_mul_f(const float *input_a, const float *input_b, float *output, int OP_TYPE, size_t size, int num_dpus);
@@ -23,10 +24,15 @@ int vec_add_f(const float *input_a, const float *input_b, float *output, size_t 
   return vec_add_mul_f(input_a, input_b, output, VEC_ADD, size, num_of_DPUs);
 }
 
-// int vec_mul_f(const float *input_a, const float *input_b, float *output, size_t size) {
-//   uint32_t num_of_DPUs = 64;
-//   return vec_add_mul_f(input_a, input_b, output, VEC_MUL, size, num_of_DPUs);
-// }
+int vec_mul_f(const float *input_a, const float *input_b, float *output, size_t size) {
+  uint32_t num_of_DPUs = 64;
+  return vec_add_mul_f(input_a, input_b, output, VEC_MUL, size, num_of_DPUs);
+}
+
+int vec_sub_f(const float *input_a, const float *input_b, float *output, size_t size) {
+  uint32_t num_of_DPUs = 64;
+  return vec_add_mul_f(input_a, input_b, output, VEC_SUB, size, num_of_DPUs);
+}
 
 int vec_add_mul_f(const float *input_a, const float *input_b, float *output, int OP_TYPE, size_t size, int num_dpus) {
   dpu_set_t set;
