@@ -4,7 +4,7 @@
 #define PARAM_COUNT 4
 #define VECTOR_LEN_POS 0
 
-void transfer_chunks_to_mram(dpu_set_t set, const char *symbol, float *data, size_t chunk_size, size_t size) {
+void transfer_chunks_to_mram(dpu_set_t set, const char *symbol, const float *data, size_t chunk_size, size_t size) {
   bool has_reminder = size % chunk_size != 0;
 
   uint32_t nr_dpus = 0;
@@ -70,7 +70,7 @@ void get_chunk_size(dpu_set_t set, int vector_len, int &split_size) {
   }
 }
 
-void to_mram(dpu_set_t set, const char *symbol, float *data, size_t len) {
+void to_mram(dpu_set_t set, const char *symbol, const float *data, size_t len) {
   uint32_t nr_dpus = 0;
   DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
 
@@ -97,7 +97,7 @@ void set_params(dpu_set_t set, uint32_t chunk_len) {
   broadcast_mram(set, "params", params.data(), PARAM_COUNT * sizeof(int));
 }
 
-int relu_f(float *input, float *output, size_t size) {
+int relu_f(const float *input, float *output, size_t size) {
   uint32_t num_of_DPUs = 64;
   dpu_set_t set;
   DPU_ASSERT(dpu_alloc(num_of_DPUs, nullptr, &set));
