@@ -28,9 +28,8 @@ int main() {
   }
 
   int actionable_length = params[ACTIONABLE_LENGTH_POS];
-  printf("Actionable length: %d\n", actionable_length);
   if ((actionable_length % 2) != 0) {
-    printf("Actionable len not aligen to 8\n");
+    printf("ERROR: Actionable len not aligned to 8\n");
     return 0;
   }
 
