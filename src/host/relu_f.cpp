@@ -109,7 +109,6 @@ int relu_f(const float *input, float *output, size_t size) {
 
   int chunk_size = 0;
   get_chunk_size(set, size, chunk_size);
-  printf("Chunk size: %d\n", chunk_size);
   set_params(set, chunk_size);
 
   to_mram(set, "buffer", input, size);

@@ -45,7 +45,6 @@ int vec_add_mul_f(const float *input_a, const float *input_b, float *output, int
 
   int chunk_size = 0;
   get_chunk_size2(set, size, chunk_size);
-  printf("Chunk size: %d\n", chunk_size);
   set_params_add_mul(set, chunk_size, OP_TYPE);
 
   to_mram2(set, "buffer_a", input_a, size);
