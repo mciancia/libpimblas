@@ -114,9 +114,6 @@ int relu_f(const float *input, float *output, size_t size) {
   to_mram(set, "buffer", input, size);
   DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
 
-  dpu_set_t dpu;
-  DPU_FOREACH(set, dpu) { DPU_ASSERT(dpu_log_read(dpu, stdout)); }
-
   from_mram(set, "buffer", output, size);
   return 0;
 }
