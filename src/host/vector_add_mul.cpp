@@ -52,9 +52,6 @@ int vec_add_mul_f(const float *input_a, const float *input_b, float *output, int
 
   DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
 
-  dpu_set_t dpu;
-  DPU_FOREACH(set, dpu) { DPU_ASSERT(dpu_log_read(dpu, stdout)); }
-
   from_mram2(set, "buffer_a", output, size);
   DPU_ASSERT(dpu_free(set));
   return 0;
