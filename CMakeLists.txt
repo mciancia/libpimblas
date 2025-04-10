@@ -43,7 +43,12 @@ message(STATUS  "Set Default Pimblas kernel dir ${PIMBLAS_DEFAULT_KERENEL_DIR}")
 
 set(UPH $ENV{UPMEM_HOME})
 if(NOT UPH)
-   message(FATAL_ERROR "UPMEM_HOME is not detected https://sdk.upmem.com/")
+   message(FATAL_ERROR "UPMEM_HOME is not detected https://sdk.upmem.com/\n"
+           "# install UpMem \n"   
+           "pip install git+https://github.com/3cityrnd/upmemsdk.git \n"
+           "# Load UpMem SDK ENV \n"
+           "source `python -m upmemsdk` && cmake .. \n"
+           )
 endif()
 
 message(STATUS "UPMEM sdk detected in [${UPH}]")
