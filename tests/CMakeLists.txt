@@ -5,7 +5,7 @@ if(LOGGING)
 list(APPEND LIB_ADD "spdlog::spdlog")
 endif()
 
-list(APPEND LIB_ADD "${FOUND_PYT36}")
+#list(APPEND LIB_ADD "${FOUND_PYT36}")
 if(ADD_GTEST_LIB)
 list(APPEND LIB_ADD "gtest")
 list(APPEND LIB_ADD "gtest_main")

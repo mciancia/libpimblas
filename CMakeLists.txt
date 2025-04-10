@@ -27,10 +27,10 @@ if(NOT CND_HOME)
 message(FATAL_ERROR "Conda is not installed")
 endif()
 
-find_library(FOUND_PYT36 NAMES python3.6m PATHS "${CND_HOME}/lib" )
-if(NOT FOUND_PYT36)
-    message(FATAL_ERROR "Can't find python3.6m ${CND_HOME}/lib")
- endif()
+#find_library(FOUND_PYT36 NAMES python3.6m PATHS "${CND_HOME}/lib" )
+#if(NOT FOUND_PYT36)
+#    message(FATAL_ERROR "Can't find python3.6m ${CND_HOME}/lib")
+# endif()
 
 
  set(GEHD_SCRIPT "${CMAKE_SOURCE_DIR}/bin/genhd.sh")
