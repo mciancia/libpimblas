@@ -14,7 +14,7 @@ inline void transfer_chunks_to_mram_int8(dpu_set_t set, const char *symbol, cons
 inline void transfer_chunks_from_mram_int8(dpu_set_t set, const char *symbol, int8_t *data, size_t chunk_size, size_t size);
 
 
-inline void get_chunk_size2(dpu_set_t set, int vector_len, int &split_size) {
+inline void get_chunk_size2(dpu_set_t set, int vector_len, int &split_size, int data_type_size) {
   uint32_t nr_dpus = 0;
   DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
 
@@ -26,8 +26,10 @@ inline void get_chunk_size2(dpu_set_t set, int vector_len, int &split_size) {
     split_size++;
   }
   // if the split size in not even, we need to align it to the nearest even number
-  if (split_size % 8 != 0) {
+  if (split_size % 8 != 0 && data_type_size == 1) {
     split_size+=8-split_size%8;
+  } else if (split_size % 2 != 0 && data_type_size == 4) {
+    split_size++;
   }
 }
 
@@ -44,7 +46,7 @@ inline void to_mram2(dpu_set_t set, const char *symbol, const float *data, size_
   DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
 
   int chunk_size = 0;
-  get_chunk_size2(set, len, chunk_size);
+  get_chunk_size2(set, len, chunk_size, sizeof(float));
   transfer_chunks_to_mram2(set, symbol, data, chunk_size, len);
 }
 
@@ -53,7 +55,7 @@ inline void to_mram_int8(dpu_set_t set, const char *symbol, const int8_t *data, 
   DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
 
   int chunk_size = 0;
-  get_chunk_size2(set, len, chunk_size);
+  get_chunk_size2(set, len, chunk_size, sizeof(int8_t));
   transfer_chunks_to_mram_int8(set, symbol, data, chunk_size, len);
 }
 
@@ -62,7 +64,7 @@ inline void from_mram2(dpu_set_t set, const char *symbol, float *data, size_t le
   DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
 
   int split_size = 0;
-  get_chunk_size2(set, len, split_size);
+  get_chunk_size2(set, len, split_size, sizeof(float));
   float *buffer = new float[nr_dpus * split_size];
   transfer_chunks_from_mram2(set, symbol, buffer, split_size, len);
   memcpy(data, buffer, len * sizeof(float));
@@ -74,7 +76,7 @@ inline void from_mram_int8(dpu_set_t set, const char *symbol, int8_t *data, size
   DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
 
   int split_size = 0;
-  get_chunk_size2(set, len, split_size);
+  get_chunk_size2(set, len, split_size, sizeof(int8_t));
   int8_t *buffer = new int8_t[nr_dpus * split_size];
   transfer_chunks_from_mram_int8(set, symbol, buffer, split_size, len);
   memcpy(data, buffer, len * sizeof(int8_t));

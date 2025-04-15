@@ -44,7 +44,7 @@ int vec_add_mul_int8(const int8_t *input_a, const int8_t *input_b, int8_t *outpu
   free(kernName);
 
   int chunk_size = 0;
-  get_chunk_size2(set, size, chunk_size);
+  get_chunk_size2(set, size, chunk_size, sizeof(int8_t));
   set_params_add_mul_int8(set, chunk_size, OP_TYPE);
 
   to_mram_int8(set, "buffer_a", input_a, size);
