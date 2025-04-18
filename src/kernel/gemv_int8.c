@@ -3,7 +3,6 @@
 #include <built_ins.h>
 #include <defs.h>
 #include <mram.h>
-#include <mram_unaligned.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -26,7 +25,55 @@ row_size - maximum size of single matrix row
 
 */
 
-#define BLOCK_SIZE 512
+#define BLOCK_SIZE 1024
+
+#define MIN(x, y) (((y) < (x)) ? (y) : (x))
+#define ROUND_UP(x, s) (((x) + ((s) - 1)) & ~((s) - 1))
+#define ROUND_DOWN(x, s) ((x) & ~((s) - 1))
+
+/*
+ * Performs a dot product of eight 8-bit values.
+ *
+ * This macro loads two 64-bit values from the memory locations pointed to
+ * by `x` and `y`, respectively. It then calculates the dot product of the
+ * individual 8-bit integers from both `x` and `y` in a highly optimized
+ * manner using various multiplication intrinsics.
+ */
+#define DOT_8(x, y, acc)                      \
+  do {                                        \
+    unsigned long x_dw, y_dw;                 \
+    unsigned int x_lo, x_hi, y_lo, y_hi;      \
+    int tmp;                                  \
+                                              \
+    x_dw = *((unsigned long *)(x));           \
+    x_lo = x_dw;                              \
+    x_hi = x_dw >> 32;                        \
+    y_dw = *((unsigned long *)(y));           \
+    y_lo = y_dw;                              \
+    y_hi = y_dw >> 32;                        \
+                                              \
+    __builtin_mul_sl_sl_rrr(tmp, x_lo, y_lo); \
+    acc += tmp;                               \
+    __builtin_mul_sh_sh_rrr(tmp, x_lo, y_lo); \
+    acc += tmp;                               \
+    x_lo >>= 16;                              \
+    y_lo >>= 16;                              \
+    __builtin_mul_sl_sl_rrr(tmp, x_lo, y_lo); \
+    acc += tmp;                               \
+    __builtin_mul_sh_sh_rrr(tmp, x_lo, y_lo); \
+                                              \
+    acc += tmp;                               \
+    __builtin_mul_sl_sl_rrr(tmp, x_hi, y_hi); \
+    acc += tmp;                               \
+    __builtin_mul_sh_sh_rrr(tmp, x_hi, y_hi); \
+    acc += tmp;                               \
+    x_hi >>= 16;                              \
+    y_hi >>= 16;                              \
+    __builtin_mul_sl_sl_rrr(tmp, x_hi, y_hi); \
+    acc += tmp;                               \
+    __builtin_mul_sh_sh_rrr(tmp, x_hi, y_hi); \
+    acc += tmp;                               \
+  } while (0)
 
 struct params {
   uint32_t rows_per_dpu;
@@ -38,14 +85,6 @@ struct params {
 __host struct params args;
 
 BARRIER_INIT(mem_reset_barrier, NR_TASKLETS);
-
-uint32_t alignUpTo8(uint32_t value) { return (value + 7) & ~7; }
-
-uint32_t alignDownTo8(uint32_t value) { return value & ~7; }
-
-uint32_t alignUpTo64(uint32_t value) { return (value + 63) & ~63; }
-
-uint32_t alignUpTo2(uint32_t value) { return (value + 1) & ~1; }
 
 int main() {
   int tasklet_id = me();
@@ -64,89 +103,77 @@ int main() {
 
   // Note: All MRAM allocations need to be 8B aligned in order to read from/write to them.
 
-  uint32_t mram_offset_in_bytes = 0;
+  int A_mram_offset = tasklet_id * rows_per_tasklet * args.row_size;
+  int8_t *A_mram = (int8_t *)(DPU_MRAM_HEAP_POINTER);
+  int mram_offset = ROUND_UP(args.row_size * args.rows_per_dpu, 8);
 
-  int8_t *A_mram = (int8_t *)(DPU_MRAM_HEAP_POINTER + mram_offset_in_bytes +
-                              (tasklet_id * args.row_size * rows_per_tasklet) * sizeof(int8_t));
-  mram_offset_in_bytes += alignUpTo8(args.row_size * args.rows_per_dpu * sizeof(int8_t));
-
-  int8_t *x_mram = (int8_t *)(DPU_MRAM_HEAP_POINTER + mram_offset_in_bytes);
-  mram_offset_in_bytes += alignUpTo8(args.row_size * sizeof(int8_t));
+  int8_t *x_mram = (int8_t *)(DPU_MRAM_HEAP_POINTER + mram_offset);
+  mram_offset += ROUND_UP(args.row_size, 8);
 
   // Should be fine as long as rows_per_tasklet is even
-  int *result_mram =
-      (int *)(DPU_MRAM_HEAP_POINTER + mram_offset_in_bytes + (tasklet_id * rows_per_tasklet) * sizeof(int));
+  int *y_mram = (int *)(DPU_MRAM_HEAP_POINTER + mram_offset + tasklet_id * rows_per_tasklet * sizeof(int));
 
   // TODO: Find better way to share x across all tasklets, because now we
   // have multiple copies of the same values across tasklets.
   // If number of rows to be processed is small enough it should be possible
   // or we could just make a barrier and wait until all tasklets finish until
   // getting another part of x
-  int8_t *x_wram = (int *)mem_alloc(BLOCK_SIZE * sizeof(int8_t));
+  int8_t *x_wram = (int8_t *)mem_alloc(BLOCK_SIZE);
   // It's important we allocate more memory for A_wram, because of the hack
   // we later to do to write into it from mram (alignment issues).
-  // We add 64B in order to be aligned.
-  int8_t *A_wram = (int *)mem_alloc((BLOCK_SIZE) * sizeof(int8_t) + 64);
+  // We add 8B in order to be aligned.
+  int8_t *A_wram = (int8_t *)mem_alloc(BLOCK_SIZE + 8);
 
-  uint32_t result_size = alignUpTo64(rows_per_tasklet * sizeof(int));
-  int *mul_result_wram = (int *)mem_alloc(result_size);
+  int Ax_len = rows_per_tasklet * sizeof(int);
+  int *Ax_wram = (int *)mem_alloc(Ax_len);
 
   // zero out the results - it's required when we are running the kernel multiple times.
-  memset(mul_result_wram, 0, result_size);
+  memset(Ax_wram, 0, Ax_len);
 
   int nr_blocks = (args.row_size - 1) / BLOCK_SIZE + 1;
-  for (uint32_t block = 0; block < nr_blocks; block++) {
-    const int block_offset = block * BLOCK_SIZE;
-
-    int block_length = block_offset + BLOCK_SIZE <= args.row_size ? BLOCK_SIZE : args.row_size - block_offset;
-    mram_read((__mram_ptr void *)(x_mram + block_offset), x_wram, BLOCK_SIZE * sizeof(int8_t));
-    for (uint32_t i = 0; i < rows_per_tasklet; i++) {
-      uint32_t a_offset = (uint32_t)(A_mram + i * args.row_size + block_offset);
-      int8_t *A_wram_read = NULL;
-
-      if (a_offset & 7) {
-        int offset = (a_offset & 7);
-        mram_read((__mram_ptr void *)(alignDownTo8(a_offset)), A_wram, (BLOCK_SIZE + 8) * sizeof(int8_t));
-        A_wram_read = (A_wram + offset);
+  for (int b = 0; b < nr_blocks; ++b) {
+    int b_offset = b * BLOCK_SIZE;
+    int b_length = MIN(BLOCK_SIZE, args.row_size - b_offset);
+    mram_read((__mram_ptr void *)(x_mram + b_offset), x_wram, BLOCK_SIZE);
+    for (int i = 0; i < rows_per_tasklet; ++i) {
+      // If offset is not aligned to 8B it will be automatically aligned down to 8 bytes
+      // This happens when row_size is an odd value.
+      int A_offset = A_mram_offset + i * args.row_size + b_offset;
+      int8_t* A_wram_read = A_wram;
+      int acc = 0;
+      int j = 0;
+      if (A_offset & 7) {
+        mram_read((__mram_ptr void *)(A_mram + ROUND_DOWN(A_offset, 8)), A_wram, BLOCK_SIZE + 8);
+        A_wram_read += A_offset & 7;
       } else {
-        mram_read((__mram_ptr void *)(a_offset), A_wram, BLOCK_SIZE * sizeof(int8_t));
-        A_wram_read = A_wram;
+        mram_read((__mram_ptr void *)(A_mram + A_offset), A_wram, BLOCK_SIZE);
+
+        #pragma unroll(64)
+        for (; j < ROUND_DOWN(b_length, 512); j += 8) {
+          DOT_8(&A_wram_read[j], &x_wram[j], acc);
+        }
       }
 
-      int sum = 0;
-#pragma unroll
-      for (uint32_t j = 0; j < block_length; ++j) {
-        int tmp;
-        __builtin_mul_sl_sl_rrr(tmp, A_wram_read[j], x_wram[j]);
-        sum += tmp;
+      #pragma unroll(64)
+      for (; j < ROUND_DOWN(b_length, 64); ++j) {
+        acc += A_wram_read[j] * x_wram[j];
       }
 
-      mul_result_wram[i] += sum;
+      for (; j < b_length; ++j) {
+        acc += A_wram_read[j] * x_wram[j];
+      }
+
+      Ax_wram[i] += acc;
     }
   }
 
-  if (args.beta != 0) {
-    int *result_wram = (int *)mem_alloc(result_size);
-    mram_read((__mram_ptr void *)(result_mram), result_wram, rows_per_tasklet * sizeof(int));
+  int *y_wram = (int *)mem_alloc(Ax_len);
+  mram_read((__mram_ptr void *)y_mram, y_wram, rows_per_tasklet * sizeof(int));
 
-    if (args.alpha != 1) {
-      for (uint32_t i = 0; i < rows_per_tasklet; i++) {
-        result_wram[i] = args.alpha * mul_result_wram[i] + args.beta * result_wram[i];
-      }
-    } else {
-      for (uint32_t i = 0; i < rows_per_tasklet; i++) {
-        result_wram[i] = mul_result_wram[i] + args.beta * result_wram[i];
-      }
-    }
-    mram_write(result_wram, (__mram_ptr void *)result_mram, rows_per_tasklet * sizeof(int));
-  } else {
-    if (args.alpha != 1) {
-      for (uint32_t i = 0; i < rows_per_tasklet; i++) {
-        mul_result_wram[i] = args.alpha * mul_result_wram[i];
-      }
-    }
-    mram_write(mul_result_wram, (__mram_ptr void *)result_mram, rows_per_tasklet * sizeof(int));
+  for (int i = 0; i < rows_per_tasklet; ++i) {
+    y_wram[i] = args.alpha * Ax_wram[i] + args.beta * y_wram[i];
   }
 
+  mram_write(y_wram, (__mram_ptr void *)y_mram, rows_per_tasklet * sizeof(int));
   return 0;
 }
